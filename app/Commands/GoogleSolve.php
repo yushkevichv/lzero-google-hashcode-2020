@@ -39,7 +39,7 @@ class GoogleSolve extends Command
             die(1);
         }
 
-        $dataSet = $this->getDataFromFile($inputFile);
+        $this->fillDataFromFile($inputFile);
 
         $this->task("Installing Laravel", function () {
             $this->info('Simplicity is the ultimate sophistication.');
@@ -64,7 +64,6 @@ class GoogleSolve extends Command
         {
             $this->books[] = new \App\Models\Book($i, (int) $booksScore[$i]);
         }
-
 
         for($i = 0; $i < $this->limits->librariesCount; $i++)
         {
