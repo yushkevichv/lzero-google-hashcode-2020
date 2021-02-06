@@ -57,7 +57,5 @@ class Library
 
         // test for more accuracy variants
         return  $this->books->slice(0, $countProcessedBooks)->sum('score');
-
     }
-
 }
