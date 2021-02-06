@@ -22,8 +22,9 @@ class GoogleSolve extends Command
     protected $description = 'Magic solver hashcode competition';
 
     public \App\Models\Limits $limits;
-    public array $libraries;
+    public \Illuminate\Support\Collection $libraries;
     public array $books;
+    public \App\Models\Solution $solution;
 
     /**
      * Execute the console command.
@@ -39,38 +40,88 @@ class GoogleSolve extends Command
             die(1);
         }
 
-        $this->fillDataFromFile($inputFile);
-
-        $this->task("Installing Laravel", function () {
-            $this->info('Simplicity is the ultimate sophistication.');
+        $this->task("Fill data from file", function () use ($inputFile) {
+            $this->fillDataFromFile($inputFile);
             return true;
         });
 
-        $this->task("Doing something else", function () {
-            return false;
+        $this->task("Calculate optimal solution", function() {
+            $this->solve();
+            return true;
         });
-        $this->comment('test comment');
-        $this->question('to be or not to be? ');
+
+
+        $this->task("Outputting", function () {
+            $this->info("Libraries count: ". $this->solution->libraries->count());
+            foreach($this->solution->booksFromLibrary as $libraryId => $booksFromLibrary)
+            {
+                $this->info("Signup library $libraryId and send count books: ". count($booksFromLibrary));
+                $this->info("Send books to processing: ". implode(' ', $booksFromLibrary));
+                $this->info("Total score is: ". $this->solution->getTotalScore());
+
+            }
+            return true;
+        });
+    }
+
+    private function solve() : void
+    {
+        $this->solution = new \App\Models\Solution();
+
+        while($this->libraries->isNotEmpty() && $this->limits->daysLimit > 0)
+        {
+            $this->recalcLibraryScore();
+            /** @var \App\Models\Library $library */
+            $library = $this->libraries->shift();
+            if($library->score  == 0) {
+                break;
+            }
+
+            $this->solution->addLibrary($library, $this->limits->daysLimit);
+            $this->limits->daysLimit -= $library->signupDays;
+
+            if ($library->books->isEmpty()) {
+                continue;
+            }
+        }
+    }
+
+    private function recalcLibraryScore()
+    {
+        $this->libraries->each(function ($library) {
+            $processeedBooks = $this->solution->getAllProcessedBooks();
+            $library->books->whereIn('id', $processeedBooks)->each(function(\App\Models\Book $book) {
+                $book->score = 0;
+            });
+//            $library->setBooks($library->books->whereNotIn('id', $processeedBooks));
+            $library->calculateScore($this->limits->daysLimit);
+        });
+
+        $this->libraries = $this->libraries->sortByDesc('score');
     }
 
     private function fillDataFromFile(string $filePath) : void
     {
-        $file = fopen($filePath, 'r');
+        $fileHandle = fopen($filePath, 'r');
 
-        $this->limits = new \App\Models\Limits(...$this->unpack(fgets($file)));
-        $booksScore = $this->unpack(fgets($file));
+        $this->limits = new \App\Models\Limits(...$this->unpack(fgets($fileHandle)));
+        $booksScore = $this->unpack(fgets($fileHandle));
 
         for($i = 0; $i < $this->limits->booksCount; $i++)
         {
             $this->books[] = new \App\Models\Book($i, (int) $booksScore[$i]);
         }
 
+        $this->libraries = collect([]);
         for($i = 0; $i < $this->limits->librariesCount; $i++)
         {
-            $library = new \App\Models\Library($i, ...$this->unpack(fgets($file)));
-            $library->setBooks($this->unpack(fgets($file)));
-            $this->libraries[] = $library;
+            $library = new \App\Models\Library($i, ...$this->unpack(fgets($fileHandle)));
+            $library->setBooks(collect($this->books)->whereIn('id', $this->unpack(fgets($fileHandle))));
+            $library->calculateScore($this->limits->daysLimit);
+            $this->libraries->push($library);
         }
+
+        fclose($fileHandle);
     }
 
     private function unpack(string $line) :array
