@@ -15,7 +15,8 @@ class GoogleSolve extends Command
      *
      * @var string
      */
-    protected $signature = 'hashcode:solve';
+    protected $signature = 'hashcode:solve
+                            {path : Path to input file (required)} ';
     /**
      * The description of the command.
      *
@@ -31,13 +32,13 @@ class GoogleSolve extends Command
     public function handle()
     {
         $timeStart = microtime(true);
-        // @todo move to param
+        $inputFile = $this->argument('path');
 //        $inputFile = storage_path('input/a_example.txt');
-        $inputFile = storage_path('input/b_read_on.txt');
+//        $inputFile = storage_path('input/b_read_on.txt');
 //        $inputFile = storage_path('input/c_incunabula.txt');
 //        $inputFile = storage_path('input/d_tough_choices.txt');
         if (!is_file($inputFile)) {
-            $this->error("invalid input file");
+            $this->error("invalid input file with path: $inputFile");
             die(1);
         }
 
