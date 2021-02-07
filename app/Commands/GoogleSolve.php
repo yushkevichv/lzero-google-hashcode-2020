@@ -32,8 +32,8 @@ class GoogleSolve extends Command
     {
         $timeStart = microtime(true);
         // @todo move to param
-        $inputFile = storage_path('input/a_example.txt');
-//        $inputFile = storage_path('input/b_read_on.txt');
+//        $inputFile = storage_path('input/a_example.txt');
+        $inputFile = storage_path('input/b_read_on.txt');
         if (!is_file($inputFile)) {
             $this->error("invalid input file");
             die(1);
@@ -56,7 +56,7 @@ class GoogleSolve extends Command
         });
 
         $timeEnd = microtime(true);
-        $this->comment("Process solving take: ". ($timeEnd - $timeStart). " sec");
+        $this->comment("Process solving take: ".($timeEnd - $timeStart)." sec");
     }
 
     private function fillDataFromFile(string $filePath): void
@@ -69,7 +69,7 @@ class GoogleSolve extends Command
         $progressBar = $this->createProgressBar($this->limits->booksCount);
 
         for ($i = 0; $i < $this->limits->booksCount; $i++) {
-            $this->books[] = new \App\Models\Book($i, (int) $booksScore[$i]);
+            $this->books[$i] = new \App\Models\Book($i, (int) $booksScore[$i]);
             $progressBar->advance();
         }
 
@@ -80,8 +80,11 @@ class GoogleSolve extends Command
         $progressBar = $this->createProgressBar($this->limits->booksCount);
         for ($i = 0; $i < $this->limits->librariesCount; $i++) {
             $library = new \App\Models\Library($i, ...$this->unpack(fgets($fileHandle)));
-            $library->setBooks(collect($this->books)->whereIn('id', $this->unpack(fgets($fileHandle))));
-            $library->calculateScore($this->limits->daysLimit);
+            $books = [];
+            foreach ($this->unpack(fgets($fileHandle)) as $bookId) {
+                $books[] = $this->books[$bookId];
+            }
+            $library->setBooks(collect($books));
             $this->libraries->push($library);
             $progressBar->advance();
         }
@@ -94,6 +97,16 @@ class GoogleSolve extends Command
     private function unpack(string $line): array
     {
         return explode(' ', trim($line));
+    }
+
+    private function createProgressBar($maxSteps): \Symfony\Component\Console\Helper\ProgressBar
+    {
+        $progressBar = new \Symfony\Component\Console\Helper\ProgressBar($this->output, $maxSteps);
+        $progressBar->setEmptyBarCharacter('░'); // light shade character \u2591
+        $progressBar->setProgressCharacter('');
+        $progressBar->setBarCharacter('▓'); // dark shade character \u2593
+        $progressBar->setFormat(" %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% \n");
+        return $progressBar;
     }
 
     private function solve(): void
@@ -109,7 +122,11 @@ class GoogleSolve extends Command
                 break;
             }
 
-            $this->solution->addLibrary($library, $this->limits->daysLimit);
+            $processedBooks = $library->books->pluck('id')->toArray();
+            $this->solution->addLibrary($library, $processedBooks, $this->limits->daysLimit);
+            foreach ($processedBooks as $book) {
+                $this->books[$book]->score = 0;
+            }
             $this->limits->daysLimit -= $library->signupDays;
 
             $progressBar->advance();
@@ -120,27 +137,9 @@ class GoogleSolve extends Command
         $progressBar->finish();
     }
 
-    private function createProgressBar($maxSteps) : \Symfony\Component\Console\Helper\ProgressBar
-    {
-        $progressBar = new \Symfony\Component\Console\Helper\ProgressBar($this->output, $maxSteps);
-        $progressBar->setEmptyBarCharacter('░'); // light shade character \u2591
-        $progressBar->setProgressCharacter('');
-        $progressBar->setBarCharacter('▓'); // dark shade character \u2593
-        $progressBar->setFormat(" %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% \n");
-        return $progressBar;
-    }
-
     private function recalcLibraryScore()
     {
         $this->libraries->each(function ($library) {
-            $processeedBooks = $this->solution->getAllProcessedBooks();
-            // we can reset already processed books score or just skipped it (i think, rejecting will be faster)
-//            $library->books->whereIn('id', $processeedBooks)->each(function(\App\Models\Book $book) {
-//                $book->score = 0;
-//            });
-//            $library->sortBooks();
-            $library->setBooks($library->books->whereNotIn('id', $processeedBooks));
-
             $library->calculateScore($this->limits->daysLimit);
         });
 

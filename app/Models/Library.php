@@ -21,23 +21,19 @@ class Library
         $this->books = collect([]);
     }
 
-    public function setBooks(\Illuminate\Support\Collection $books) : void
+    public function setBooks(\Illuminate\Support\Collection $books): void
     {
-        $this->books = $books->sortByDesc('score');
+        $this->books = $books->filter(function (Book $book) {
+            return $book->score > 0;
+        })->sortByDesc('score');
     }
 
-    public function sortBooks(): void
-    {
-        $this->books = $this->books->sortByDesc('score');
-    }
-
-    public function calculateScore(int $daysLimit) :void
+    public function calculateScore(int $daysLimit): void
     {
         $this->score = 0;
         $booksScore = $this->calculateBooksScore($daysLimit);
 
-        if($booksScore == 0)
-        {
+        if ($booksScore == 0) {
             return;
         }
 
@@ -45,10 +41,9 @@ class Library
         $this->score = $booksScore / $this->signupDays;
     }
 
-    public function calculateBooksScore(int $daysLimit) :int
+    public function calculateBooksScore(int $daysLimit): int
     {
-        if($daysLimit <= $this->signupDays)
-        {
+        if ($daysLimit <= $this->signupDays) {
             return 0;
         }
 
@@ -56,6 +51,6 @@ class Library
         $countProcessedBooks = ($this->totalBooksCount > $potentialProcessed) ? $potentialProcessed : $this->totalBooksCount;
 
         // test for more accuracy variants
-        return  $this->books->slice(0, $countProcessedBooks)->sum('score');
+        return $this->books->slice(0, $countProcessedBooks)->sum('score');
     }
 }

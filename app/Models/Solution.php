@@ -16,11 +16,11 @@ class Solution
         $this->booksFromLibrary = collect([]);
     }
 
-    public function addLibrary(Library $library, int $daysLimit): void
+    public function addLibrary(Library $library, array $processedBooks, int $daysLimit): void
     {
         $this->libraries->push($library->id);
         // @todo check, maybe need to control added books with perDay param, need to test
-        $this->addBooksForLibrary($library, $library->books->pluck('id')->toArray());
+        $this->addBooksForLibrary($library, $processedBooks);
 
         // test for more accuracy variants
         $this->totalScore += $library->calculateBooksScore($daysLimit);
