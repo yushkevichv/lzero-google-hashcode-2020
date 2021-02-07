@@ -34,6 +34,8 @@ class GoogleSolve extends Command
         // @todo move to param
 //        $inputFile = storage_path('input/a_example.txt');
         $inputFile = storage_path('input/b_read_on.txt');
+//        $inputFile = storage_path('input/c_incunabula.txt');
+//        $inputFile = storage_path('input/d_tough_choices.txt');
         if (!is_file($inputFile)) {
             $this->error("invalid input file");
             die(1);
@@ -152,7 +154,7 @@ class GoogleSolve extends Command
         foreach ($this->solution->booksFromLibrary as $libraryId => $booksFromLibrary) {
             $this->info("Signup library $libraryId and send count books: ".count($booksFromLibrary));
             $this->info("Send books to processing: ".implode(' ', $booksFromLibrary));
-            $this->info("Total score is: ".$this->solution->getTotalScore());
         }
+        $this->info("Total score is: ".$this->solution->getTotalScore());
     }
 }
